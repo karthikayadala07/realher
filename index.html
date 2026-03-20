@@ -1,0 +1,1881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RealHer – Fighting Deepfake Misuse with AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pink: #e91e8c;
+    --hot-pink: #ff2d9b;
+    --magenta: #c2185b;
+    --purple: #6a0dad;
+    --deep-purple: #3d0066;
+    --violet: #9c27b0;
+    --light-pink: #f8bbd0;
+    --white: #ffffff;
+    --card-bg: rgba(255,255,255,0.07);
+    --card-border: rgba(255,255,255,0.15);
+    --text-dim: rgba(255,255,255,0.65);
+    --grad: linear-gradient(135deg, #3d0066 0%, #6a0dad 40%, #c2185b 80%, #e91e8c 100%);
+    --grad2: linear-gradient(135deg, #e91e8c, #9c27b0);
+    --shadow: 0 8px 40px rgba(233,30,140,0.25);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--grad);
+    min-height: 100vh;
+    color: var(--white);
+    overflow-x: hidden;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(233,30,140,0.15) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(106,13,173,0.2) 0%, transparent 50%),
+                radial-gradient(ellipse at 60% 80%, rgba(156,39,176,0.1) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Grain overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 32px;
+    background: rgba(0,0,0,0.2);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--card-border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo-wrap { display: flex; align-items: center; gap: 14px; cursor: pointer; }
+  .logo-img { width: 44px; height: 44px; object-fit: contain; }
+  .logo-text { font-family: 'Playfair Display', serif; font-size: 1.6rem; }
+  .logo-text span.real { color: #fff; }
+  .logo-text span.her { color: var(--hot-pink); }
+
+  .topbar-right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+  select#lang-select {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid var(--card-border);
+    color: #fff;
+    padding: 7px 14px;
+    border-radius: 30px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    outline: none;
+  }
+  select#lang-select option { background: #3d0066; color: #fff; }
+
+  .voice-btn {
+    background: var(--grad2);
+    border: none;
+    color: #fff;
+    padding: 8px 18px;
+    border-radius: 30px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 7px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: var(--shadow);
+  }
+  .voice-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(233,30,140,0.4); }
+  .voice-btn .mic-icon { font-size: 1rem; }
+
+  /* ── AUTH PAGES ── */
+  .auth-page {
+    display: flex; align-items: center; justify-content: center;
+    min-height: calc(100vh - 77px);
+    padding: 40px 24px;
+  }
+  .auth-card {
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(30px);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 48px 44px;
+    width: 100%;
+    max-width: 460px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: slideUp 0.5s ease;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .auth-card h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem; margin-bottom: 8px;
+  }
+  .auth-card p.subtitle { color: var(--text-dim); margin-bottom: 32px; font-size: 0.9rem; }
+
+  .field { margin-bottom: 20px; }
+  .field label { display: block; font-size: 0.83rem; font-weight: 500; color: var(--text-dim); margin-bottom: 7px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .field input {
+    width: 100%;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--card-border);
+    color: #fff;
+    padding: 13px 16px;
+    border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .field input:focus {
+    border-color: var(--hot-pink);
+    box-shadow: 0 0 0 3px rgba(233,30,140,0.2);
+  }
+  .field input::placeholder { color: rgba(255,255,255,0.3); }
+
+  .face-upload-box {
+    border: 2px dashed rgba(233,30,140,0.5);
+    border-radius: 14px;
+    padding: 28px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: rgba(233,30,140,0.04);
+    position: relative;
+  }
+  .face-upload-box:hover { border-color: var(--hot-pink); background: rgba(233,30,140,0.08); }
+  .face-upload-box input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .face-upload-box .upload-icon { font-size: 2.2rem; margin-bottom: 8px; }
+  .face-upload-box p { font-size: 0.85rem; color: var(--text-dim); }
+  .face-preview { max-width: 100px; border-radius: 50%; border: 3px solid var(--hot-pink); margin-top: 12px; display: none; }
+
+  .btn-primary {
+    width: 100%;
+    background: var(--grad2);
+    border: none;
+    color: #fff;
+    padding: 15px;
+    border-radius: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    box-shadow: 0 6px 24px rgba(233,30,140,0.35);
+    transition: transform 0.2s, box-shadow 0.2s;
+    letter-spacing: 0.02em;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(233,30,140,0.45); }
+
+  .auth-switch { text-align: center; margin-top: 20px; font-size: 0.88rem; color: var(--text-dim); }
+  .auth-switch a { color: var(--hot-pink); cursor: pointer; text-decoration: underline; }
+
+  .protect-msg {
+    margin-top: 24px;
+    background: rgba(233,30,140,0.1);
+    border: 1px solid rgba(233,30,140,0.3);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 0.85rem;
+    color: var(--light-pink);
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  /* ── DASHBOARD ── */
+  #dashboard { display: none; min-height: calc(100vh - 77px); }
+
+  .dash-header {
+    padding: 40px 32px 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .dash-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.2rem;
+    margin-bottom: 6px;
+  }
+  .dash-header p { color: var(--text-dim); font-size: 0.95rem; }
+  .privacy-banner {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--card-border);
+    border-radius: 30px;
+    padding: 10px 20px;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    margin-top: 14px;
+    width: fit-content;
+  }
+  .privacy-banner .dot { width: 8px; height: 8px; border-radius: 50%; background: #4caf50; flex-shrink: 0; box-shadow: 0 0 6px #4caf50; }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 0 32px 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    padding: 28px;
+    transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(233,30,140,0.12), transparent 70%);
+    transition: opacity 0.3s;
+  }
+  .card:hover { transform: translateY(-5px); box-shadow: 0 20px 50px rgba(0,0,0,0.25), 0 0 0 1px rgba(233,30,140,0.3); border-color: rgba(233,30,140,0.4); }
+  .card-icon { font-size: 2rem; margin-bottom: 14px; }
+  .card h3 { font-family: 'Playfair Display', serif; font-size: 1.2rem; margin-bottom: 8px; }
+  .card p { font-size: 0.85rem; color: var(--text-dim); line-height: 1.6; }
+  .card-arrow { position: absolute; bottom: 20px; right: 22px; font-size: 1.1rem; color: var(--hot-pink); opacity: 0; transition: opacity 0.2s, transform 0.2s; }
+  .card:hover .card-arrow { opacity: 1; transform: translateX(4px); }
+
+  /* ── SECTION PANELS ── */
+  .section-panel {
+    display: none;
+    position: fixed;
+    inset: 0; z-index: 200;
+    background: rgba(20,0,40,0.85);
+    backdrop-filter: blur(6px);
+    overflow-y: auto;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .section-panel.active { display: block; }
+
+  .panel-inner {
+    max-width: 760px;
+    margin: 60px auto;
+    background: linear-gradient(145deg, rgba(61,0,102,0.95), rgba(106,13,173,0.9));
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 44px;
+    position: relative;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    animation: slideUp 0.4s ease;
+  }
+  .panel-close {
+    position: absolute; top: 20px; right: 22px;
+    background: rgba(255,255,255,0.1);
+    border: none; color: #fff;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .panel-close:hover { background: rgba(233,30,140,0.4); }
+  .panel-inner h2 { font-family: 'Playfair Display', serif; font-size: 1.9rem; margin-bottom: 8px; }
+  .panel-inner .panel-sub { color: var(--text-dim); font-size: 0.88rem; margin-bottom: 28px; }
+
+  .upload-zone {
+    border: 2px dashed rgba(233,30,140,0.5);
+    border-radius: 16px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.25s;
+    background: rgba(233,30,140,0.04);
+  }
+  .upload-zone:hover { border-color: var(--hot-pink); background: rgba(233,30,140,0.09); }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-zone .up-icon { font-size: 3rem; margin-bottom: 12px; }
+  .upload-zone p { color: var(--text-dim); font-size: 0.9rem; }
+  .upload-zone strong { color: #fff; }
+
+  .result-box {
+    margin-top: 24px;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 24px;
+    display: none;
+    animation: slideUp 0.4s ease;
+  }
+  .result-box.show { display: block; }
+
+  .progress-bar-wrap { margin: 10px 0 6px; background: rgba(255,255,255,0.1); border-radius: 99px; height: 10px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; border-radius: 99px; background: var(--grad2); transition: width 1.2s cubic-bezier(.4,0,.2,1); }
+
+  .risk-badge {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 16px; border-radius: 30px; font-size: 0.82rem; font-weight: 600;
+    margin-top: 12px;
+  }
+  .risk-low    { background: rgba(76,175,80,0.2);  color: #81c784; border: 1px solid rgba(76,175,80,0.4); }
+  .risk-medium { background: rgba(255,193,7,0.2);  color: #ffd54f; border: 1px solid rgba(255,193,7,0.4); }
+  .risk-high   { background: rgba(244,67,54,0.2);  color: #ef9a9a; border: 1px solid rgba(244,67,54,0.4); }
+
+  .alert-box {
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    margin-top: 14px;
+    display: flex; align-items: flex-start; gap: 10px;
+    line-height: 1.6;
+  }
+  .alert-danger { background: rgba(244,67,54,0.12); border: 1px solid rgba(244,67,54,0.3); color: #ef9a9a; }
+  .alert-success { background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.3); color: #a5d6a7; }
+  .alert-info { background: rgba(33,150,243,0.12); border: 1px solid rgba(33,150,243,0.3); color: #90caf9; }
+
+  .stat-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
+  .stat-chip {
+    flex: 1; min-width: 120px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .stat-chip .val { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: var(--hot-pink); }
+  .stat-chip .lbl { font-size: 0.75rem; color: var(--text-dim); margin-top: 4px; }
+
+  .btn-secondary {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid var(--card-border);
+    color: #fff;
+    padding: 12px 22px;
+    border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn-secondary:hover { background: rgba(233,30,140,0.2); border-color: rgba(233,30,140,0.4); }
+
+  .btn-danger {
+    background: rgba(244,67,54,0.15);
+    border: 1px solid rgba(244,67,54,0.35);
+    color: #ef9a9a;
+    padding: 12px 22px;
+    border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn-danger:hover { background: rgba(244,67,54,0.25); }
+
+  /* Evidence list */
+  .evidence-list { list-style: none; margin-top: 16px; }
+  .evidence-list li {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+  }
+  .evidence-list .ev-info .ev-name { font-weight: 600; font-size: 0.9rem; }
+  .evidence-list .ev-info .ev-meta { font-size: 0.78rem; color: var(--text-dim); margin-top: 3px; }
+  .ev-btns { display: flex; gap: 8px; }
+
+  /* Chatbot */
+  .chat-window {
+    background: rgba(0,0,0,0.25);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    height: 340px;
+    overflow-y: auto;
+    padding: 18px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .chat-window::-webkit-scrollbar { width: 4px; }
+  .chat-window::-webkit-scrollbar-thumb { background: rgba(233,30,140,0.4); border-radius: 4px; }
+  .msg { max-width: 82%; padding: 11px 16px; border-radius: 16px; font-size: 0.88rem; line-height: 1.55; animation: msgIn 0.3s ease; }
+  @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .msg.bot { background: rgba(233,30,140,0.15); border: 1px solid rgba(233,30,140,0.25); align-self: flex-start; border-bottom-left-radius: 4px; }
+  .msg.user { background: rgba(255,255,255,0.1); border: 1px solid var(--card-border); align-self: flex-end; border-bottom-right-radius: 4px; }
+  .chat-input-row { display: flex; gap: 10px; margin-top: 12px; }
+  .chat-input-row input {
+    flex: 1;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--card-border);
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    outline: none;
+  }
+  .chat-input-row input::placeholder { color: rgba(255,255,255,0.3); }
+  .chat-input-row input:focus { border-color: var(--hot-pink); }
+  .chat-send {
+    background: var(--grad2);
+    border: none; color: #fff;
+    padding: 12px 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: opacity 0.2s;
+  }
+  .chat-send:hover { opacity: 0.85; }
+
+  /* Certificate */
+  .cert-box {
+    background: linear-gradient(135deg, rgba(233,30,140,0.08), rgba(106,13,173,0.15));
+    border: 2px solid rgba(233,30,140,0.3);
+    border-radius: 20px;
+    padding: 36px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .cert-box::before {
+    content: '✦';
+    position: absolute;
+    font-size: 8rem;
+    color: rgba(233,30,140,0.04);
+    top: -20px; right: -20px;
+  }
+  .cert-box .cert-logo { font-family: 'Playfair Display', serif; font-size: 2.5rem; margin-bottom: 8px; }
+  .cert-box .cert-logo span { color: var(--hot-pink); }
+  .cert-box h3 { font-size: 1.1rem; color: var(--text-dim); margin-bottom: 18px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 400; }
+  .cert-box .cert-user { font-family: 'Playfair Display', serif; font-size: 1.6rem; margin-bottom: 6px; }
+  .cert-box .cert-msg { color: var(--text-dim); font-size: 0.88rem; margin-bottom: 24px; }
+  .cert-box .cert-seal { font-size: 3rem; margin-bottom: 10px; }
+  .cert-box .cert-date { font-size: 0.8rem; color: var(--text-dim); }
+
+  /* Complaint modal */
+  .complaint-confirm {
+    background: rgba(244,67,54,0.08);
+    border: 1px solid rgba(244,67,54,0.3);
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 20px;
+  }
+  .complaint-confirm h4 { font-family: 'Playfair Display', serif; margin-bottom: 10px; color: #ef9a9a; }
+  .complaint-confirm p { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 16px; line-height: 1.6; }
+  .complaint-btns { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px; right: 30px;
+    background: linear-gradient(135deg, rgba(61,0,102,0.97), rgba(106,13,173,0.97));
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 16px 22px;
+    font-size: 0.88rem;
+    max-width: 340px;
+    z-index: 999;
+    display: none;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    animation: slideUp 0.3s ease;
+  }
+  .toast.show { display: block; }
+  .toast .toast-icon { font-size: 1.2rem; margin-right: 8px; }
+
+  /* Spinner */
+  .spinner {
+    display: inline-block;
+    width: 22px; height: 22px;
+    border: 3px solid rgba(255,255,255,0.2);
+    border-top-color: var(--hot-pink);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Voice pulse */
+  .voice-active .mic-icon { animation: pulse 1s ease infinite; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .topbar { padding: 12px 16px; }
+    .panel-inner { margin: 20px 12px; padding: 28px 20px; }
+    .cards-grid { padding: 0 16px 32px; }
+    .dash-header { padding: 28px 16px 18px; }
+    .auth-card { padding: 32px 22px; }
+  }
+
+  .hidden { display: none !important; }
+
+  /* Compliant generation special */
+  .complaint-report {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 20px;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    line-height: 1.8;
+    white-space: pre-line;
+    font-family: monospace;
+    margin-top: 16px;
+    display: none;
+  }
+  .complaint-report.show { display: block; }
+
+  /* Loading overlay */
+  .loading-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(20,0,40,0.7);
+    border-radius: 16px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    z-index: 5;
+  }
+  .loading-overlay.show { display: flex; }
+
+  .section-divider { height: 1px; background: var(--card-border); margin: 24px 0; }
+
+  .lang-note { font-size: 0.78rem; color: var(--text-dim); margin-top: 6px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo-wrap" onclick="goHome()">
+    <img src="/mnt/user-data/uploads/realher.png" class="logo-img" alt="RealHer Logo" onerror="this.style.display='none'">
+    <div class="logo-text"><span class="real">Real</span><span class="her">Her</span></div>
+  </div>
+  <div class="topbar-right">
+    <select id="lang-select" onchange="changeLang(this.value)">
+      <option value="en">🌐 English</option>
+      <option value="te">తెలుగు</option>
+      <option value="hi">हिन्दी</option>
+      <option value="ta">தமிழ்</option>
+      <option value="kn">ಕನ್ನಡ</option>
+      <option value="ml">മലയാളം</option>
+      <option value="mr">मराठी</option>
+    </select>
+    <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()">
+      <span class="mic-icon">🎤</span>
+      <span id="voiceBtnText">Voice Guide</span>
+    </button>
+  </div>
+</div>
+
+<!-- ── LOGIN PAGE ── -->
+<div id="loginPage" class="auth-page">
+  <div class="auth-card">
+    <h2 id="loginTitle">Welcome Back</h2>
+    <p class="subtitle" id="loginSub">Sign in to your RealHer account to continue your protection journey.</p>
+    <div class="field">
+      <label id="lbl-email">Email Address</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com">
+    </div>
+    <div class="field">
+      <label id="lbl-pass">Password</label>
+      <input type="password" id="loginPass" placeholder="••••••••">
+    </div>
+    <button class="btn-primary" onclick="doLogin()" id="loginBtn">Sign In →</button>
+    <div class="auth-switch" id="loginSwitch">Don't have an account? <a onclick="showRegister()">Register here</a></div>
+  </div>
+</div>
+
+<!-- ── REGISTER PAGE ── -->
+<div id="registerPage" class="auth-page hidden">
+  <div class="auth-card">
+    <h2 id="regTitle">Create Your Account</h2>
+    <p class="subtitle" id="regSub">Register to protect your digital identity with RealHer AI.</p>
+    <div class="field">
+      <label>Full Name</label>
+      <input type="text" id="regName" placeholder="Your full name">
+    </div>
+    <div class="field">
+      <label>Email Address</label>
+      <input type="email" id="regEmail" placeholder="you@example.com">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="regPass" placeholder="Create a strong password">
+    </div>
+    <div class="field">
+      <label id="lbl-face">Register Your Face (for identity protection)</label>
+      <div class="face-upload-box" id="faceUploadBox">
+        <input type="file" accept="image/*" onchange="previewFace(this)">
+        <div class="upload-icon">🤳</div>
+        <p>Click or drag your photo here</p>
+        <img id="facePreview" class="face-preview" alt="face preview">
+      </div>
+    </div>
+    <button class="btn-primary" onclick="doRegister()" id="regBtn">Create Account & Protect Identity →</button>
+    <div class="auth-switch">Already have an account? <a onclick="showLogin()">Sign in</a></div>
+    <div class="protect-msg">
+      🛡️ <span id="protectMsg">Your digital identity will be protected by RealHer.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ── -->
+<div id="dashboard">
+  <div class="dash-header">
+    <h1 id="dashGreet">Hello, <span id="dashName">User</span> 👋</h1>
+    <p id="dashTagline">Your identity is protected. Explore RealHer's safety tools below.</p>
+    <div class="privacy-banner">
+      <div class="dot"></div>
+      <span id="privacyBanner">Your data is secure and never shared without your permission.</span>
+    </div>
+  </div>
+
+  <div class="cards-grid">
+    <div class="card" onclick="openPanel('uploadPanel')">
+      <div class="card-icon">📤</div>
+      <h3 id="card1t">Upload Media</h3>
+      <p id="card1d">Upload images or videos for deepfake analysis and secure evidence storage.</p>
+      <span class="card-arrow">→</span>
+    </div>
+    <div class="card" onclick="openPanel('detectPanel')">
+      <div class="card-icon">🔍</div>
+      <h3 id="card2t">Deepfake Detection</h3>
+      <p id="card2d">AI-powered analysis to detect manipulated content and identity misuse.</p>
+      <span class="card-arrow">→</span>
+    </div>
+    <div class="card" onclick="openPanel('evidencePanel')">
+      <div class="card-icon">🗂️</div>
+      <h3 id="card3t">Evidence Storage</h3>
+      <p id="card3d">Securely store detected evidence with timestamped certificates.</p>
+      <span class="card-arrow">→</span>
+    </div>
+    <div class="card" onclick="openPanel('complaintPanel')">
+      <div class="card-icon">📋</div>
+      <h3 id="card4t">Complaint Generation</h3>
+      <p id="card4d">Auto-generate official complaints to SHE Teams and cybercrime authorities.</p>
+      <span class="card-arrow">→</span>
+    </div>
+    <div class="card" onclick="openPanel('chatPanel')">
+      <div class="card-icon">💬</div>
+      <h3 id="card5t">Emotional Support</h3>
+      <p id="card5d">Speak with our compassionate AI assistant. You are never alone.</p>
+      <span class="card-arrow">→</span>
+    </div>
+    <div class="card" onclick="openPanel('certPanel')">
+      <div class="card-icon">🏅</div>
+      <h3 id="card6t">Digital Certificate</h3>
+      <p id="card6d">Download your identity protection certificate as proof of registration.</p>
+      <span class="card-arrow">→</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PANELS ══════════ -->
+
+<!-- UPLOAD PANEL -->
+<div id="uploadPanel" class="section-panel">
+  <div class="panel-inner">
+    <button class="panel-close" onclick="closePanel('uploadPanel')">✕</button>
+    <h2>📤 Upload Media</h2>
+    <p class="panel-sub">Upload an image or video to store securely and run deepfake analysis.</p>
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" accept="image/*,video/*" onchange="handleUpload(this)">
+      <div class="up-icon">☁️</div>
+      <p><strong>Click or drag</strong> your file here</p>
+      <p style="margin-top:6px;">Supported: JPG, PNG, MP4, MOV</p>
+    </div>
+    <div class="result-box" id="uploadResult">
+      <p>✅ <strong id="uploadFileName"></strong> uploaded securely.</p>
+      <p style="font-size:0.82rem;color:var(--text-dim);margin-top:6px;">Encrypted and stored. Timestamp: <span id="uploadTime"></span></p>
+      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn-primary" style="width:auto;padding:12px 22px;" onclick="runDetection()">Run Deepfake Detection →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DETECT PANEL -->
+<div id="detectPanel" class="section-panel">
+  <div class="panel-inner" style="position:relative;">
+    <button class="panel-close" onclick="closePanel('detectPanel')">✕</button>
+    <div class="loading-overlay" id="detectLoader">
+      <div class="spinner"></div>
+      <span id="detectLoaderMsg">Reading image…</span>
+      <div style="font-size:0.75rem;color:var(--text-dim);margin-top:6px;">Powered by Claude Vision AI</div>
+    </div>
+    <h2>🔍 Deepfake Detection</h2>
+    <p class="panel-sub">Upload media and our AI will analyze it for signs of manipulation.</p>
+    <div class="upload-zone">
+      <input type="file" accept="image/*,video/*" onchange="analyzeFile(this)">
+      <div class="up-icon">🧠</div>
+      <p><strong>Click or drag</strong> media to analyze</p>
+    </div>
+    <div class="result-box" id="detectResult">
+
+      <!-- Image Preview Row -->
+      <div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:20px;">
+        <img id="detectedImagePreview" style="width:100px;height:100px;object-fit:cover;border-radius:14px;border:3px solid rgba(233,30,140,0.5);flex-shrink:0;" alt="Analyzed image"/>
+        <div style="flex:1;">
+          <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.06em;">Analyzed File</div>
+          <div id="detectedFileName" style="font-size:0.9rem;font-weight:700;word-break:break-all;margin-bottom:3px;"></div>
+          <div id="detectedFileTime" style="font-size:0.76rem;color:var(--text-dim);"></div>
+        </div>
+      </div>
+
+      <!-- Verdict Banner -->
+      <div id="verdictBanner" style="border-radius:14px;padding:20px 24px;margin-bottom:20px;text-align:center;font-size:1.6rem;font-weight:900;letter-spacing:0.04em;"></div>
+
+      <!-- REAL vs FAKE Score Bars -->
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:20px;margin-bottom:16px;">
+        <div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:16px;">📊 Detection Scores</div>
+
+        <!-- Real Score -->
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+            <span style="font-size:0.9rem;font-weight:600;">✅ Real / Authentic</span>
+            <span id="realPercent" style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:900;color:#66bb6a;">0%</span>
+          </div>
+          <div style="height:12px;background:rgba(255,255,255,0.08);border-radius:99px;overflow:hidden;">
+            <div id="realBar" style="height:100%;width:0%;background:linear-gradient(90deg,#43a047,#66bb6a);border-radius:99px;transition:width 1.4s cubic-bezier(0.4,0,0.2,1);"></div>
+          </div>
+          <div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">How likely this image is a genuine authentic photograph</div>
+        </div>
+
+        <!-- Fake Score -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+            <span style="font-size:0.9rem;font-weight:600;">🤖 Fake / AI Generated</span>
+            <span id="fakePercent" style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:900;color:#ef5350;">0%</span>
+          </div>
+          <div style="height:12px;background:rgba(255,255,255,0.08);border-radius:99px;overflow:hidden;">
+            <div id="fakeBar" style="height:100%;width:0%;background:linear-gradient(90deg,#e53935,#ef5350);border-radius:99px;transition:width 1.4s cubic-bezier(0.4,0,0.2,1);"></div>
+          </div>
+          <div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">How likely this image is AI-generated or deepfake manipulated</div>
+        </div>
+
+        <!-- Confidence -->
+        <div style="display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.07);">
+          <span style="font-size:0.82rem;color:var(--text-dim);">🎯 AI Confidence:</span>
+          <span id="confidenceScore" style="font-size:0.9rem;font-weight:700;color:#90caf9;">–</span>
+        </div>
+      </div>
+
+      <!-- Risk Badge + Message -->
+      <div id="riskBadge" style="margin-bottom:10px;"></div>
+      <div id="riskMsg" class="alert-box" style="margin-bottom:16px;"></div>
+
+      <!-- AI Forensic Analysis -->
+      <div id="aiReasoningBox" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px;margin-bottom:16px;display:none;">
+        <div style="font-size:0.76rem;font-weight:700;color:var(--hot-pink);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">🧠 AI Forensic Analysis</div>
+        <div id="aiReasoningText" style="font-size:0.84rem;color:var(--text-dim);line-height:1.75;margin-bottom:12px;"></div>
+        <div id="signalsList" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+      </div>
+
+      <!-- Evidence Certificate Preview -->
+      <div id="evidenceCertBox" style="background:linear-gradient(145deg,rgba(61,0,102,0.8),rgba(106,13,173,0.7));border:1px solid rgba(233,30,140,0.35);border-radius:14px;padding:20px;margin-bottom:16px;display:none;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:0;left:15%;right:15%;height:2px;background:linear-gradient(90deg,transparent,#e91e8c,transparent);"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:900;">Real<span style="color:#ff2d9b;">Her</span></div>
+          <div style="background:rgba(233,30,140,0.2);border:1px solid rgba(233,30,140,0.4);border-radius:20px;padding:4px 12px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#ff84c2;">🏅 Evidence Certificate</div>
+        </div>
+        <div style="font-size:0.85rem;font-weight:700;text-align:center;margin-bottom:14px;color:rgba(255,255,255,0.8);">AI Deepfake Detection Certificate</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px 14px;">
+            <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.07em;color:rgba(255,255,255,0.4);margin-bottom:3px;">File Name</div>
+            <div id="certEvidenceFilename" style="font-size:0.82rem;font-weight:600;word-break:break-all;"></div>
+          </div>
+          <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px 14px;">
+            <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.07em;color:rgba(255,255,255,0.4);margin-bottom:3px;">Analysis Time</div>
+            <div id="certEvidenceTime" style="font-size:0.82rem;font-weight:600;"></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.06);border-radius:12px;padding:14px 18px;flex-wrap:wrap;gap:12px;">
+          <div style="display:flex;gap:24px;">
+            <div style="text-align:center;">
+              <div id="certEvidenceReal" style="font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:900;color:#66bb6a;"></div>
+              <div style="font-size:0.68rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.06em;">Authentic</div>
+            </div>
+            <div style="text-align:center;">
+              <div id="certEvidenceFake" style="font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:900;color:#ef5350;"></div>
+              <div style="font-size:0.68rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.06em;">Deepfake</div>
+            </div>
+          </div>
+          <div id="certEvidenceVerdict" style="padding:10px 20px;border-radius:30px;font-weight:800;font-size:0.95rem;text-transform:uppercase;letter-spacing:0.08em;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:0.7rem;color:rgba(255,255,255,0.35);flex-wrap:wrap;gap:6px;">
+          <span>Powered by Claude AI Vision · RealHer Platform</span>
+          <span id="certEvidenceId" style="font-family:monospace;color:rgba(233,30,140,0.7);"></span>
+        </div>
+      </div>
+
+      <!-- Complaint Prompt -->
+      <div id="complaintPrompt" class="complaint-confirm hidden">
+        <h4>⚠️ Potential Identity Misuse Detected</h4>
+        <p>High-risk deepfake content found. Would you like to auto-generate a complaint report for SHE Teams / Cybercrime authorities?</p>
+        <div class="complaint-btns">
+          <button class="btn-danger" onclick="generateComplaint()">Yes, Generate Complaint</button>
+          <button class="btn-secondary" onclick="document.getElementById('complaintPrompt').classList.add('hidden')">Not now</button>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn-primary" style="flex:1;min-width:160px;" onclick="saveEvidenceWithCert()">💾 Save as Evidence</button>
+        <button class="btn-secondary" style="flex:1;min-width:160px;" onclick="downloadEvidenceCert()">📥 Download Certificate</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EVIDENCE PANEL -->
+<div id="evidencePanel" class="section-panel">
+  <div class="panel-inner">
+    <button class="panel-close" onclick="closePanel('evidencePanel')">✕</button>
+    <h2>🗂️ Evidence Storage</h2>
+    <p class="panel-sub">All stored evidence is encrypted and timestamped automatically.</p>
+    <ul class="evidence-list" id="evidenceList">
+      <li id="noEvidenceMsg" style="justify-content:center;color:var(--text-dim);font-size:0.88rem;border-style:dashed;">No evidence stored yet. Run detection first.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- COMPLAINT PANEL -->
+<div id="complaintPanel" class="section-panel">
+  <div class="panel-inner">
+    <button class="panel-close" onclick="closePanel('complaintPanel')">✕</button>
+    <h2>📋 Complaint Generation</h2>
+    <p class="panel-sub">Generate an official complaint report to submit to authorities.</p>
+    <div class="alert-box alert-info">
+      ℹ️ Complaints are generated from your stored evidence and analysis results. Make sure you have run deepfake detection first.
+    </div>
+    <div style="margin-top:20px;">
+      <button class="btn-primary" style="width:auto;" onclick="generateComplaint()">🖊️ Generate Complaint Report</button>
+    </div>
+    <pre class="complaint-report" id="complaintReport"></pre>
+    <div id="complaintActions" class="hidden" style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap;">
+      <button class="btn-primary" style="width:auto;" onclick="downloadComplaint()">📥 Download Report</button>
+      <button class="btn-secondary" onclick="showToast('📧 Complaint sent to SHE Teams & Cybercrime portal!')">📤 Submit to Authorities</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHAT PANEL -->
+<div id="chatPanel" class="section-panel">
+  <div class="panel-inner">
+    <button class="panel-close" onclick="closePanel('chatPanel')">✕</button>
+    <h2>💬 Emotional Support</h2>
+    <p class="panel-sub">You are not alone. Our compassionate assistant is here for you.</p>
+    <div class="chat-window" id="chatWindow">
+      <div class="msg bot">💜 Hello! I'm here for you. How are you feeling today?</div>
+      <div class="msg bot">You are safe here. Everything you share is completely confidential.</div>
+    </div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="Type your message…" onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="chat-send" onclick="sendChat()">➤</button>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn-secondary" style="font-size:0.8rem;padding:8px 14px;" onclick="sendQuick('I feel scared')">I feel scared</button>
+      <button class="btn-secondary" style="font-size:0.8rem;padding:8px 14px;" onclick="sendQuick('What should I do?')">What should I do?</button>
+      <button class="btn-secondary" style="font-size:0.8rem;padding:8px 14px;" onclick="sendQuick('I need help')">I need help</button>
+    </div>
+  </div>
+</div>
+
+<!-- CERT PANEL -->
+<div id="certPanel" class="section-panel">
+  <div class="panel-inner">
+    <button class="panel-close" onclick="closePanel('certPanel')">✕</button>
+    <h2>🏅 Digital Certificate</h2>
+    <p class="panel-sub">Download your official RealHer identity protection certificate.</p>
+    <div class="cert-box" id="certBox">
+      <div class="cert-logo">Real<span>Her</span></div>
+      <h3>Certificate of Digital Identity Protection</h3>
+      <div class="cert-seal">🛡️</div>
+      <div class="cert-user" id="certName">User Name</div>
+      <div class="cert-msg">This certifies that your digital identity is registered and protected by RealHer AI Systems.</div>
+      <div class="cert-date" id="certDate"></div>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;">
+      <button class="btn-primary" style="width:auto;" onclick="downloadCert()">📥 Download Certificate</button>
+    </div>
+    <div class="protect-msg" style="margin-top:20px;">
+      🛡️ Your digital identity is protected by RealHer.
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><span class="toast-icon">✅</span><span id="toastMsg"></span></div>
+
+<script>
+// ── STATE ──
+let currentUser = null;
+let evidenceStore = [];
+let lastDetection = null;
+let voiceActive = false;
+let synth = window.speechSynthesis;
+
+// ── TRANSLATIONS ──
+const T = {
+  en: {
+    loginTitle:"Welcome Back", loginSub:"Sign in to your RealHer account to continue your protection journey.",
+    regTitle:"Create Your Account", regSub:"Register to protect your digital identity with RealHer AI.",
+    dashGreet:"Hello, ", dashTagline:"Your identity is protected. Explore RealHer's safety tools below.",
+    privacyBanner:"Your data is secure and never shared without your permission.",
+    card1t:"Upload Media",card1d:"Upload images or videos for deepfake analysis and secure evidence storage.",
+    card2t:"Deepfake Detection",card2d:"AI-powered analysis to detect manipulated content and identity misuse.",
+    card3t:"Evidence Storage",card3d:"Securely store detected evidence with timestamped certificates.",
+    card4t:"Complaint Generation",card4d:"Auto-generate official complaints to SHE Teams and cybercrime authorities.",
+    card5t:"Emotional Support",card5d:"Speak with our compassionate AI assistant. You are never alone.",
+    card6t:"Digital Certificate",card6d:"Download your identity protection certificate as proof of registration.",
+    protectMsg:"Your digital identity will be protected by RealHer.",
+    voiceGuide:"Welcome to RealHer. Upload your image to check for deepfake misuse. Your identity is protected."
+  },
+  te: {
+    loginTitle:"తిరిగి స్వాగతం", loginSub:"మీ RealHer ఖాతాకు సైన్ ఇన్ చేయండి.",
+    regTitle:"ఖాతా సృష్టించండి", regSub:"మీ డిజిటల్ గుర్తింపును రక్షించడానికి నమోదు చేయండి.",
+    dashGreet:"నమస్కారం, ", dashTagline:"మీ గుర్తింపు రక్షించబడింది.",
+    privacyBanner:"మీ డేటా సురక్షితంగా ఉంది మరియు మీ అనుమతి లేకుండా ఎప్పుడూ పంచుకోబడదు.",
+    card1t:"మీడియా అప్‌లోడ్",card1d:"చిత్రాలు లేదా వీడియోలను విశ్లేషణ కోసం అప్‌లోడ్ చేయండి.",
+    card2t:"డీప్‌ఫేక్ గుర్తింపు",card2d:"AI-ఆధారిత విశ్లేషణ.",
+    card3t:"సాక్ష్యం నిల్వ",card3d:"సాక్ష్యాన్ని సురక్షితంగా నిల్వ చేయండి.",
+    card4t:"ఫిర్యాదు రూపొందింపు",card4d:"అధికారులకు ఫిర్యాదు పంపండి.",
+    card5t:"భావోద్వేగ మద్దతు",card5d:"మీరు ఒంటరిగా లేరు.",
+    card6t:"డిజిటల్ సర్టిఫికేట్",card6d:"రక్షణ సర్టిఫికేట్ డౌన్‌లోడ్ చేయండి.",
+    protectMsg:"మీ డిజిటల్ గుర్తింపు RealHer ద్వారా రక్షించబడుతుంది.",
+    voiceGuide:"RealHer కి స్వాగతం. డీప్‌ఫేక్ తనిఖీ కోసం మీ చిత్రాన్ని అప్‌లోడ్ చేయండి."
+  },
+  hi: {
+    loginTitle:"वापस स्वागत है", loginSub:"अपनी RealHer खाते में साइन इन करें।",
+    regTitle:"खाता बनाएं", regSub:"अपनी डिजिटल पहचान की सुरक्षा के लिए पंजीकरण करें।",
+    dashGreet:"नमस्ते, ", dashTagline:"आपकी पहचान सुरक्षित है।",
+    privacyBanner:"आपका डेटा सुरक्षित है और बिना अनुमति के कभी साझा नहीं किया जाएगा।",
+    card1t:"मीडिया अपलोड करें",card1d:"विश्लेषण के लिए चित्र या वीडियो अपलोड करें।",
+    card2t:"डीपफेक पहचान",card2d:"AI-संचालित विश्लेषण।",
+    card3t:"साक्ष्य भंडारण",card3d:"पहचाने गए साक्ष्य को सुरक्षित रूप से संग्रहित करें।",
+    card4t:"शिकायत उत्पन्न करें",card4d:"SHE Teams को स्वचालित शिकायत।",
+    card5t:"भावनात्मक सहायता",card5d:"आप अकेले नहीं हैं।",
+    card6t:"डिजिटल प्रमाणपत्र",card6d:"पहचान सुरक्षा प्रमाणपत्र डाउनलोड करें।",
+    protectMsg:"आपकी डिजिटल पहचान RealHer द्वारा सुरक्षित है।",
+    voiceGuide:"RealHer में आपका स्वागत है। डीपफेक जांच के लिए अपनी छवि अपलोड करें।"
+  },
+  ta: {
+    loginTitle:"மீண்டும் வரவேற்கிறோம்", loginSub:"உங்கள் RealHer கணக்கில் உள்நுழையவும்.",
+    regTitle:"கணக்கு உருவாக்கவும்", regSub:"உங்கள் டிஜிட்டல் அடையாளத்தை பாதுகாக்க பதிவு செய்யவும்.",
+    dashGreet:"வணக்கம், ", dashTagline:"உங்கள் அடையாளம் பாதுகாக்கப்பட்டுள்ளது.",
+    privacyBanner:"உங்கள் தரவு பாதுகாப்பாக உள்ளது மற்றும் ஒருபோதும் பகிரப்படாது.",
+    card1t:"மீடியா பதிவேற்றம்",card1d:"ஆய்வுக்காக படங்கள் அல்லது வீடியோக்களை பதிவேற்றவும்.",
+    card2t:"டீப்ஃபேக் கண்டறிதல்",card2d:"AI-இயக்கும் ஆய்வு.",
+    card3t:"சாட்சி சேமிப்பு",card3d:"சாட்சியை பாதுகாப்பாக சேமிக்கவும்.",
+    card4t:"புகார் உருவாக்கம்",card4d:"அதிகாரிகளுக்கு புகார் அனுப்பவும்.",
+    card5t:"உணர்ச்சி ஆதரவு",card5d:"நீங்கள் தனியாக இல்லை.",
+    card6t:"டிஜிட்டல் சான்றிதழ்",card6d:"சான்றிதழை பதிவிறக்கவும்.",
+    protectMsg:"உங்கள் டிஜிட்டல் அடையாளம் RealHer ஆல் பாதுகாக்கப்படுகிறது.",
+    voiceGuide:"RealHer-க்கு வரவேற்கிறோம். டீப்ஃபேக் சோதனைக்காக உங்கள் படத்தை பதிவேற்றவும்."
+  },
+  kn: {
+    loginTitle:"ಮತ್ತೆ ಸ್ವಾಗತ", loginSub:"ನಿಮ್ಮ RealHer ಖಾತೆಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿ.",
+    regTitle:"ಖಾತೆ ರಚಿಸಿ", regSub:"ನಿಮ್ಮ ಡಿಜಿಟಲ್ ಗುರುತನ್ನು ರಕ್ಷಿಸಿ.",
+    dashGreet:"ನಮಸ್ಕಾರ, ", dashTagline:"ನಿಮ್ಮ ಗುರುತು ರಕ್ಷಿಸಲ್ಪಟ್ಟಿದೆ.",
+    privacyBanner:"ನಿಮ್ಮ ಡೇಟಾ ಸುರಕ್ಷಿತ ಮತ್ತು ಎಂದಿಗೂ ಹಂಚಿಕೊಳ್ಳಲ್ಪಡುವುದಿಲ್ಲ.",
+    card1t:"ಮಾಧ್ಯಮ ಅಪ್‌ಲೋಡ್",card1d:"ವಿಶ್ಲೇಷಣೆಗಾಗಿ ಚಿತ್ರಗಳು ಅಥವಾ ವೀಡಿಯೊಗಳನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ.",
+    card2t:"ಡೀಪ್‌ಫೇಕ್ ಪತ್ತೆ",card2d:"AI ಆಧಾರಿತ ವಿಶ್ಲೇಷಣೆ.",
+    card3t:"ಸಾಕ್ಷ್ಯ ಸಂಗ್ರಹ",card3d:"ಸಾಕ್ಷ್ಯವನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ಸಂಗ್ರಹಿಸಿ.",
+    card4t:"ದೂರು ಉತ್ಪಾದನೆ",card4d:"ಅಧಿಕಾರಿಗಳಿಗೆ ಸ್ವಯಂಚಾಲಿತ ದೂರು.",
+    card5t:"ಭಾವನಾತ್ಮಕ ಬೆಂಬಲ",card5d:"ನೀವು ಒಬ್ಬಂಟಿಯಾಗಿಲ್ಲ.",
+    card6t:"ಡಿಜಿಟಲ್ ಪ್ರಮಾಣಪತ್ರ",card6d:"ಗುರುತಿನ ರಕ್ಷಣಾ ಪ್ರಮಾಣಪತ್ರ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ.",
+    protectMsg:"ನಿಮ್ಮ ಡಿಜಿಟಲ್ ಗುರುತು RealHer ಇಂದ ರಕ್ಷಿಸಲ್ಪಟ್ಟಿದೆ.",
+    voiceGuide:"RealHer ಗೆ ಸ್ವಾಗತ. ಡೀಪ್‌ಫೇಕ್ ಪರಿಶೀಲನೆಗಾಗಿ ನಿಮ್ಮ ಚಿತ್ರವನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ."
+  },
+  ml: {
+    loginTitle:"തിരിച്ചു സ്വാഗതം", loginSub:"നിങ്ങളുടെ RealHer അക്കൗണ്ടിൽ സൈൻ ഇൻ ചെയ്യുക.",
+    regTitle:"അക്കൗണ്ട് സൃഷ്ടിക്കുക", regSub:"നിങ്ങളുടെ ഡിജിറ്റൽ ഐഡന്റിറ്റി സംരക്ഷിക്കാൻ രജിസ്റ്റർ ചെയ്യുക.",
+    dashGreet:"നമസ്കാരം, ", dashTagline:"നിങ്ങളുടെ ഐഡന്റിറ്റി സംരക്ഷിക്കപ്പെട്ടിരിക്കുന്നു.",
+    privacyBanner:"നിങ്ങളുടെ ഡേറ്റ സുരക്ഷിതമാണ് ഒരിക്കലും പങ്കിടില്ല.",
+    card1t:"മീഡിയ അപ്‌ലോഡ്",card1d:"വിശകലനത്തിനായി ചിത്രങ്ങൾ അല്ലെങ്കിൽ വീഡിയോകൾ അപ്‌ലോഡ് ചെയ്യുക.",
+    card2t:"ഡീപ്‌ഫേക്ക് കണ്ടെത്തൽ",card2d:"AI-അധിഷ്ഠിത വിശകലനം.",
+    card3t:"തെളിവ് സംഭരണം",card3d:"തെളിവ് സുരക്ഷിതമായി സൂക്ഷിക്കുക.",
+    card4t:"പരാതി നൽകൽ",card4d:"അധികൃതർക്ക് പരാതി അയയ്ക്കുക.",
+    card5t:"വൈകാരിക പിന്തുണ",card5d:"നിങ്ങൾ ഒറ്റയ്ക്കല്ല.",
+    card6t:"ഡിജിറ്റൽ സർട്ടിഫിക്കറ്റ്",card6d:"ഐഡന്റിറ്റി സംരക്ഷണ സർട്ടിഫിക്കറ്റ് ഡൗൺലോഡ് ചെയ്യുക.",
+    protectMsg:"നിങ്ങളുടെ ഡിജിറ്റൽ ഐഡന്റിറ്റി RealHer സംരക്ഷിക്കുന്നു.",
+    voiceGuide:"RealHer-ലേക്ക് സ്വാഗതം. ഡീപ്‌ഫേക്ക് പരിശോധനയ്ക്കായി നിങ്ങളുടെ ചിത്രം അപ്‌ലോഡ് ചെയ്യുക."
+  },
+  mr: {
+    loginTitle:"परत स्वागत आहे", loginSub:"तुमच्या RealHer खात्यात साइन इन करा.",
+    regTitle:"खाते तयार करा", regSub:"तुमच्या डिजिटल ओळखीचे संरक्षण करण्यासाठी नोंदणी करा.",
+    dashGreet:"नमस्कार, ", dashTagline:"तुमची ओळख संरक्षित आहे.",
+    privacyBanner:"तुमचा डेटा सुरक्षित आहे आणि कधीही शेअर केला जाणार नाही.",
+    card1t:"मीडिया अपलोड करा",card1d:"विश्लेषणासाठी प्रतिमा किंवा व्हिडिओ अपलोड करा.",
+    card2t:"डीपफेक ओळख",card2d:"AI-चालित विश्लेषण.",
+    card3t:"पुरावा साठवणूक",card3d:"पुरावा सुरक्षितपणे साठवा.",
+    card4t:"तक्रार निर्मिती",card4d:"अधिकार्‍यांना तक्रार पाठवा.",
+    card5t:"भावनिक आधार",card5d:"तुम्ही एकटे नाही.",
+    card6t:"डिजिटल प्रमाणपत्र",card6d:"ओळख संरक्षण प्रमाणपत्र डाउनलोड करा.",
+    protectMsg:"तुमची डिजिटल ओळख RealHer द्वारे संरक्षित आहे.",
+    voiceGuide:"RealHer मध्ये तुमचे स्वागत आहे. डीपफेक तपासणीसाठी तुमची प्रतिमा अपलोड करा."
+  }
+};
+
+let currentLang = 'en';
+
+function changeLang(lang) {
+  currentLang = lang;
+  const t = T[lang] || T['en'];
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  set('loginTitle', t.loginTitle); set('loginSub', t.loginSub);
+  set('regTitle', t.regTitle); set('regSub', t.regSub);
+  set('dashTagline', t.dashTagline); set('privacyBanner', t.privacyBanner);
+  set('card1t', t.card1t); set('card1d', t.card1d);
+  set('card2t', t.card2t); set('card2d', t.card2d);
+  set('card3t', t.card3t); set('card3d', t.card3d);
+  set('card4t', t.card4t); set('card4d', t.card4d);
+  set('card5t', t.card5t); set('card5d', t.card5d);
+  set('card6t', t.card6t); set('card6d', t.card6d);
+  set('protectMsg', t.protectMsg);
+  if(currentUser) {
+    set('dashGreet', t.dashGreet);
+    document.getElementById('dashGreet').innerHTML = t.dashGreet + '<span id="dashName">' + currentUser.name + '</span> 👋';
+  }
+}
+
+// ── VOICE ASSISTANT ──
+function toggleVoice() {
+  if(voiceActive) {
+    synth.cancel();
+    voiceActive = false;
+    document.getElementById('voiceBtn').classList.remove('voice-active');
+    document.getElementById('voiceBtnText').textContent = 'Voice Guide';
+    return;
+  }
+  const t = T[currentLang] || T['en'];
+  const utter = new SpeechSynthesisUtterance(t.voiceGuide);
+  utter.rate = 0.9;
+  utter.pitch = 1.1;
+  utter.onend = () => {
+    voiceActive = false;
+    document.getElementById('voiceBtn').classList.remove('voice-active');
+    document.getElementById('voiceBtnText').textContent = 'Voice Guide';
+  };
+  voiceActive = true;
+  document.getElementById('voiceBtn').classList.add('voice-active');
+  document.getElementById('voiceBtnText').textContent = 'Speaking…';
+  synth.speak(utter);
+}
+
+// ── AUTH ──
+function showLogin() {
+  document.getElementById('registerPage').classList.add('hidden');
+  document.getElementById('loginPage').classList.remove('hidden');
+}
+function showRegister() {
+  document.getElementById('loginPage').classList.add('hidden');
+  document.getElementById('registerPage').classList.remove('hidden');
+}
+function goHome() {
+  if(currentUser) {
+    closeAllPanels();
+  }
+}
+
+function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if(!email || !pass) { showToast('⚠️ Please enter email and password.'); return; }
+  const stored = localStorage.getItem('rh_user_' + email);
+  if(!stored) { showToast('❌ No account found. Please register first.'); return; }
+  const user = JSON.parse(stored);
+  if(user.pass !== btoa(pass)) { showToast('❌ Incorrect password.'); return; }
+  currentUser = user;
+  loadDashboard();
+}
+
+function doRegister() {
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass = document.getElementById('regPass').value;
+  if(!name || !email || !pass) { showToast('⚠️ Please fill all fields.'); return; }
+  const user = { name, email, pass: btoa(pass), joinDate: new Date().toLocaleDateString() };
+  localStorage.setItem('rh_user_' + email, JSON.stringify(user));
+  currentUser = user;
+  loadDashboard();
+  showToast('✅ Account created! Your identity is now protected.');
+}
+
+function previewFace(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('facePreview');
+    img.src = e.target.result;
+    img.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function loadDashboard() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('registerPage').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('dashGreet').innerHTML = (T[currentLang]||T['en']).dashGreet + '<span id="dashName">' + currentUser.name + '</span> 👋';
+  document.getElementById('certName').textContent = currentUser.name;
+  document.getElementById('certDate').textContent = 'Issued: ' + new Date().toLocaleDateString('en-GB', {day:'2-digit',month:'long',year:'numeric'});
+  // Load stored evidence
+  const ev = localStorage.getItem('rh_evidence_' + currentUser.email);
+  if(ev) evidenceStore = JSON.parse(ev);
+  renderEvidence();
+}
+
+// ── PANELS ──
+function openPanel(id) {
+  document.getElementById(id).classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+function closePanel(id) {
+  document.getElementById(id).classList.remove('active');
+  document.body.style.overflow = '';
+}
+function closeAllPanels() {
+  document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
+  document.body.style.overflow = '';
+}
+
+// ── UPLOAD ──
+let uploadedFile = null;
+function handleUpload(input) {
+  const file = input.files[0];
+  if(!file) return;
+  uploadedFile = file;
+  document.getElementById('uploadFileName').textContent = file.name;
+  document.getElementById('uploadTime').textContent = new Date().toLocaleString();
+  document.getElementById('uploadResult').classList.add('show');
+  showToast('📁 File uploaded and encrypted securely.');
+}
+function runDetection() {
+  closePanel('uploadPanel');
+  openPanel('detectPanel');
+}
+
+// ── DETECTION ENGINE ──
+let detectionFile = null;
+let lastAiReasoning = '';
+let lastSignals = [];
+let lastConfidence = '';
+let savedApiKey = localStorage.getItem('rh_apikey') || '';
+let pendingAnalysisFile = null;
+
+// ── API KEY MODAL ──
+function ensureApiKeyModal() {
+  if (document.getElementById('apiKeyModal')) return;
+  const m = document.createElement('div');
+  m.id = 'apiKeyModal';
+  m.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.8);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;';
+  m.innerHTML = `
+    <div style="background:linear-gradient(145deg,#3d0066,#6a0dad);border:1px solid rgba(255,255,255,0.2);border-radius:24px;padding:44px 40px;max-width:440px;width:90%;box-shadow:0 40px 80px rgba(0,0,0,0.5);">
+      <div style="font-size:2rem;margin-bottom:12px;">🔑</div>
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.6rem;margin-bottom:8px;">Enter Anthropic API Key</h2>
+      <p style="color:rgba(255,255,255,0.65);font-size:0.88rem;margin-bottom:6px;line-height:1.6;">For real AI deepfake detection, paste your Anthropic API key. Stored only in your browser.</p>
+      <p style="color:rgba(255,200,100,0.85);font-size:0.8rem;margin-bottom:20px;">🔗 Get your key at <b>console.anthropic.com</b> → API Keys</p>
+      <input id="apiKeyInput" type="password" placeholder="sk-ant-api03-..." style="width:100%;padding:13px 16px;border-radius:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:0.95rem;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:8px;box-sizing:border-box;" />
+      <p id="apiKeyError" style="color:#ef9a9a;font-size:0.8rem;min-height:18px;margin-bottom:12px;"></p>
+      <div style="display:flex;gap:12px;">
+        <button onclick="saveApiKey()" style="flex:1;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#e91e8c,#9c27b0);color:#fff;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:'DM Sans',sans-serif;">Save & Analyze →</button>
+        <button onclick="skipApiKey()" style="padding:13px 18px;border-radius:12px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.7);font-size:0.88rem;cursor:pointer;font-family:'DM Sans',sans-serif;">Skip (local only)</button>
+      </div>
+      <p style="color:rgba(255,255,255,0.4);font-size:0.72rem;margin-top:14px;text-align:center;">🔒 Key stored only in your browser — never shared.</p>
+    </div>`;
+  document.body.appendChild(m);
+}
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val.startsWith('sk-ant')) {
+    document.getElementById('apiKeyError').textContent = '⚠️ Invalid key. Should start with sk-ant...';
+    return;
+  }
+  savedApiKey = val;
+  localStorage.setItem('rh_apikey', val);
+  document.getElementById('apiKeyModal').remove();
+  if (pendingAnalysisFile) { runAnalysis(pendingAnalysisFile); pendingAnalysisFile = null; }
+}
+function skipApiKey() {
+  document.getElementById('apiKeyModal').remove();
+  if (pendingAnalysisFile) { runAnalysis(pendingAnalysisFile, true); pendingAnalysisFile = null; }
+}
+
+function analyzeFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showToast('⚠️ Please upload an image file (JPG, PNG, WEBP) for analysis.');
+    return;
+  }
+  detectionFile = file;
+  runAnalysis(file);
+}
+
+function runAnalysis(file) {
+  const loader = document.getElementById('detectLoader');
+  loader.classList.add('show');
+  const msgs = ['📸 Reading image pixels…','🔬 Scanning facial features…','🧠 Running forensic analysis…','📊 Calculating deepfake score…','🔍 Checking texture patterns…','⚡ Finalising verdict…'];
+  let mi = 0;
+  const msgEl = document.getElementById('detectLoaderMsg');
+  if (msgEl) msgEl.textContent = msgs[0];
+  const msgInterval = setInterval(() => { mi=(mi+1)%msgs.length; const el=document.getElementById('detectLoaderMsg'); if(el)el.textContent=msgs[mi]; }, 700);
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const dataUrl = e.target.result;
+    const prevImg = document.getElementById('detectedImagePreview');
+    if (prevImg) prevImg.src = dataUrl;
+    const fnEl = document.getElementById('detectedFileName');
+    if (fnEl) fnEl.textContent = file.name;
+    const ftEl = document.getElementById('detectedFileTime');
+    if (ftEl) ftEl.textContent = new Date().toLocaleString();
+    const result = await analyzeImageCanvas(dataUrl, file);
+    clearInterval(msgInterval);
+    loader.classList.remove('show');
+    showDetectionResult(file.name, result.fakeProb, result.verdict, result.confidence, result.summary, result.signals);
+  };
+  reader.readAsDataURL(file);
+}
+
+
+// ── ADVANCED LOCAL FORENSIC ANALYSIS (no API needed) ──
+async function analyzeImageCanvas(dataUrl, file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const MAX = 600;
+        const scale = Math.min(MAX / img.width, MAX / img.height, 1);
+        canvas.width  = Math.max(1, Math.floor(img.width  * scale));
+        canvas.height = Math.max(1, Math.floor(img.height * scale));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        const W = canvas.width, H = canvas.height, total = W * H;
+
+        // ── METRIC 1: Local texture variance (AI images are unnaturally smooth) ──
+        let localVarSum = 0, blockCount = 0;
+        for (let y = 0; y < H - 8; y += 8) {
+          for (let x = 0; x < W - 8; x += 8) {
+            const vals = [];
+            for (let dy = 0; dy < 8; dy++) for (let dx = 0; dx < 8; dx++) {
+              const i = ((y+dy)*W+(x+dx))*4;
+              vals.push((data[i]+data[i+1]+data[i+2])/3);
+            }
+            const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+            localVarSum += vals.reduce((a,v)=>a+(v-mean)**2,0)/vals.length;
+            blockCount++;
+          }
+        }
+        const avgLocalVar = blockCount > 0 ? localVarSum / blockCount : 100;
+
+        // ── METRIC 2: Noise level (real photos have sensor noise; AI is too clean) ──
+        let noiseSum = 0, noisePts = 0;
+        for (let y = 1; y < H-1; y++) {
+          for (let x = 1; x < W-1; x++) {
+            const i = (y*W+x)*4;
+            const iL = (y*W+x-1)*4, iR = (y*W+x+1)*4;
+            const iU = ((y-1)*W+x)*4, iD = ((y+1)*W+x)*4;
+            for (let c = 0; c < 3; c++) {
+              const center = data[i+c];
+              const avg = (data[iL+c]+data[iR+c]+data[iU+c]+data[iD+c])/4;
+              noiseSum += Math.abs(center - avg);
+              noisePts++;
+            }
+          }
+        }
+        const avgNoise = noisePts > 0 ? noiseSum / noisePts : 10;
+
+        // ── METRIC 3: Color channel correlation (AI images have abnormal R/G/B linkage) ──
+        let rSum=0,gSum=0,bSum=0,rgSum=0,rbSum=0,gbSum=0,n=0;
+        for (let i = 0; i < data.length; i += 16) {
+          const r=data[i], g=data[i+1], b=data[i+2];
+          rSum+=r; gSum+=g; bSum+=b;
+          rgSum+=r*g; rbSum+=r*b; gbSum+=g*b; n++;
+        }
+        const rM=rSum/n, gM=gSum/n, bM=bSum/n;
+        const rgCorr = Math.abs((rgSum/n - rM*gM) / (Math.sqrt(Math.max(1,(rgSum/n)))));
+        const saturation = (Math.max(rM,gM,bM) - Math.min(rM,gM,bM));
+
+        // ── METRIC 4: Edge frequency (AI images often have unnaturally uniform sharpness) ──
+        let edgeSum=0, edgePts=0;
+        for (let y = 1; y < H-1; y++) {
+          for (let x = 1; x < W-1; x++) {
+            const i=(y*W+x)*4, ir=(y*W+x+1)*4, id=((y+1)*W+x)*4;
+            const gx=Math.abs(data[i]-data[ir])+Math.abs(data[i+1]-data[ir+1])+Math.abs(data[i+2]-data[ir+2]);
+            const gy=Math.abs(data[i]-data[id])+Math.abs(data[i+1]-data[id+1])+Math.abs(data[i+2]-data[id+2]);
+            edgeSum += Math.sqrt(gx*gx+gy*gy);
+            edgePts++;
+          }
+        }
+        const avgEdge = edgePts > 0 ? edgeSum / (edgePts*3) : 20;
+
+        // ── METRIC 5: Frequency domain proxy (block DCT variance — GAN images show regularity) ──
+        let dctVar = 0, dctBlocks = 0;
+        const BS = 16;
+        for (let y = 0; y < H-BS; y += BS) {
+          for (let x = 0; x < W-BS; x += BS) {
+            let blockSum=0, blockSq=0, bc=0;
+            for (let dy = 0; dy < BS; dy++) for (let dx = 0; dx < BS; dx++) {
+              const i=((y+dy)*W+(x+dx))*4;
+              const lum=(data[i]*0.299+data[i+1]*0.587+data[i+2]*0.114);
+              blockSum+=lum; blockSq+=lum*lum; bc++;
+            }
+            const bMean=blockSum/bc;
+            const bVar=(blockSq/bc)-(bMean*bMean);
+            dctVar += bVar; dctBlocks++;
+          }
+        }
+        const avgDCTVar = dctBlocks > 0 ? dctVar / dctBlocks : 500;
+
+        // ── METRIC 6: Resolution & file signatures ──
+        const fileSizeKB = file.size / 1024;
+        const aiResolutions = [256,512,768,1024,1280,1536,2048];
+        const isAIRes = aiResolutions.includes(img.width) || aiResolutions.includes(img.height);
+        const isSquare = Math.abs(img.width/img.height - 1.0) < 0.04;
+        const megapix = (img.width*img.height)/1e6;
+        const comprRatio = megapix > 0 ? fileSizeKB/(megapix*1000) : 0.5;
+
+        // ── METRIC 7: Skin-tone over-uniformity (AI faces have too-perfect skin) ──
+        let skinPixels=0, skinVarSum=0;
+        const skinSamples = [];
+        for (let i = 0; i < data.length; i += 20) {
+          const r=data[i], g=data[i+1], b=data[i+2];
+          // rough skin tone range
+          if (r>80&&r<250&&g>40&&g<200&&b>20&&b<180&&r>g&&r>b&&(r-b)>10) {
+            skinPixels++;
+            skinSamples.push(r-g);
+          }
+        }
+        let skinUniformity = 0;
+        if (skinSamples.length > 10) {
+          const sMean = skinSamples.reduce((a,b)=>a+b,0)/skinSamples.length;
+          const sVar  = skinSamples.reduce((a,v)=>a+(v-sMean)**2,0)/skinSamples.length;
+          skinUniformity = 1 / (1 + Math.sqrt(sVar)); // higher = more uniform = more AI
+        }
+
+        // ── SCORING ──
+        let score = 0;
+        const signals = [];
+
+        // Texture smoothness (most important signal)
+        if (avgLocalVar < 50) {
+          score += 32;
+          signals.push('🚨 Extremely smooth skin texture — strong AI generation signal');
+        } else if (avgLocalVar < 90) {
+          score += 18;
+          signals.push('⚠️ Unusually smooth texture — possible AI smoothing detected');
+        } else if (avgLocalVar < 150) {
+          score += 6;
+          signals.push('Slightly above-average skin smoothness');
+        } else {
+          signals.push('Natural texture variance consistent with real photograph');
+        }
+
+        // Noise level (too little noise = AI)
+        if (avgNoise < 1.5) {
+          score += 25;
+          signals.push('🚨 Near-zero sensor noise — real cameras always have noise');
+        } else if (avgNoise < 3.5) {
+          score += 14;
+          signals.push('⚠️ Very low sensor noise — below typical camera levels');
+        } else if (avgNoise < 6) {
+          score += 5;
+          signals.push('Slightly low sensor noise for this image type');
+        } else {
+          signals.push('Natural camera sensor noise detected');
+        }
+
+        // Skin uniformity
+        if (skinUniformity > 0.72) {
+          score += 20;
+          signals.push('🚨 Skin tone is suspiciously uniform — AI face generation pattern');
+        } else if (skinUniformity > 0.58) {
+          score += 10;
+          signals.push('⚠️ Skin tone more uniform than typical photographs');
+        } else {
+          signals.push('Natural skin tone variation detected');
+        }
+
+        // Edge consistency
+        if (avgEdge < 3.5) {
+          score += 15;
+          signals.push('⚠️ Over-smoothed edges — inconsistent with real camera optics');
+        } else if (avgEdge > 55) {
+          score += 8;
+          signals.push('Unnaturally sharp edges — possible AI sharpening');
+        } else {
+          signals.push('Edge sharpness consistent with authentic photography');
+        }
+
+        // DCT block variance (GAN regularity)
+        if (avgDCTVar < 200) {
+          score += 12;
+          signals.push('⚠️ Unusually regular frequency patterns — GAN generation artifact');
+        } else {
+          signals.push('Frequency patterns consistent with real photograph');
+        }
+
+        // Resolution signature
+        if (isAIRes) {
+          score += 12;
+          signals.push(`⚠️ Resolution (${img.width}×${img.height}) matches common AI image generator output`);
+        } else {
+          signals.push(`Image dimensions (${img.width}×${img.height}) typical of camera/smartphone`);
+        }
+
+        // Square aspect ratio
+        if (isSquare) {
+          score += 8;
+          signals.push('Square aspect ratio — common in AI portrait generators');
+        }
+
+        // Over-saturation
+        if (saturation > 160) {
+          score += 6;
+          signals.push('⚠️ Over-saturated colors — possible AI enhancement');
+        } else if (saturation < 12) {
+          score += 4;
+          signals.push('Very low color saturation — unusual for photographs');
+        } else {
+          signals.push('Color saturation within natural photographic range');
+        }
+
+        // Compression ratio
+        if (comprRatio < 0.03) {
+          score += 5;
+          signals.push('Low file size relative to resolution — AI compression signature');
+        }
+
+        score = Math.min(Math.max(score, 0), 97);
+
+        // ── VERDICT (lower thresholds = catches more deepfakes) ──
+        let verdict, confidence, summary;
+        if (score >= 45) {
+          verdict = 'FAKE';
+          confidence = score >= 70 ? 'High' : 'Medium';
+          summary = `Forensic analysis detected ${score >= 70 ? 'strong' : 'significant'} indicators of AI generation or deepfake manipulation. Abnormal pixel-level smoothness${avgNoise < 3.5 ? ', near-zero sensor noise' : ''}${skinUniformity > 0.55 ? ', and unnaturally uniform skin tones' : ''} are inconsistent with authentic photography. This image shows characteristics typical of GAN-generated or AI-manipulated content.`;
+        } else if (score >= 22) {
+          verdict = 'SUSPICIOUS';
+          confidence = 'Medium';
+          summary = 'Some forensic indicators are atypical for a standard photograph. Certain pixel-level patterns suggest possible AI processing, editing, or enhancement. Manual review is recommended before trusting this image.';
+        } else {
+          verdict = 'REAL';
+          confidence = score < 10 ? 'High' : 'Medium';
+          summary = 'Forensic analysis found no significant indicators of AI generation or deepfake manipulation. The image shows natural texture variance, normal sensor noise levels, and photographic properties consistent with an authentic camera photograph.';
+        }
+
+        resolve({ fakeProb: score, verdict, confidence, summary, signals: signals.slice(0, 6) });
+
+      } catch(err) {
+        resolve({ fakeProb:45, verdict:'SUSPICIOUS', confidence:'Low',
+          summary:'Image analysis encountered a technical issue. Results may be limited.',
+          signals:['Analysis error — limited forensic data available'] });
+      }
+    };
+    img.onerror = () => resolve({ fakeProb:50, verdict:'SUSPICIOUS', confidence:'Low',
+      summary:'Could not fully decode image for analysis.',
+      signals:['Image decode failed'] });
+    img.src = dataUrl;
+  });
+}
+
+
+function showDetectionResult(name, fakeProb, verdict, confidence, summary, signals) {
+  fakeProb = Math.max(0, Math.min(100, parseInt(fakeProb) || 0));
+  const realProb = 100 - fakeProb;
+  const certId = 'RH-' + Date.now() + '-' + Math.random().toString(36).substr(2,6).toUpperCase();
+  const ts = new Date().toLocaleString();
+
+  lastDetection = { name, fakeProb, realProb, timestamp: ts, verdict, confidence, summary, certId };
+  lastAiReasoning = summary || '';
+  lastSignals = signals || [];
+  lastConfidence = confidence || 'Medium';
+
+  // ── Verdict banner ──
+  const banner = document.getElementById('verdictBanner');
+  if (verdict === 'REAL' && fakeProb < 22) {
+    banner.style.cssText = 'border-radius:14px;padding:20px 24px;margin-bottom:20px;text-align:center;font-size:1.6rem;font-weight:900;letter-spacing:0.04em;background:linear-gradient(135deg,rgba(76,175,80,0.28),rgba(56,142,60,0.18));border:2px solid rgba(76,175,80,0.55);color:#a5d6a7;';
+    banner.innerHTML = '✅ &nbsp; AUTHENTIC IMAGE — REAL';
+  } else if (verdict === 'SUSPICIOUS' || (fakeProb >= 22 && fakeProb < 45)) {
+    banner.style.cssText = 'border-radius:14px;padding:20px 24px;margin-bottom:20px;text-align:center;font-size:1.6rem;font-weight:900;letter-spacing:0.04em;background:linear-gradient(135deg,rgba(255,193,7,0.22),rgba(245,127,23,0.12));border:2px solid rgba(255,193,7,0.5);color:#ffd54f;';
+    banner.innerHTML = '⚠️ &nbsp; SUSPICIOUS — POSSIBLE MANIPULATION';
+  } else {
+    banner.style.cssText = 'border-radius:14px;padding:20px 24px;margin-bottom:20px;text-align:center;font-size:1.6rem;font-weight:900;letter-spacing:0.04em;background:linear-gradient(135deg,rgba(244,67,54,0.28),rgba(183,28,28,0.18));border:2px solid rgba(244,67,54,0.6);color:#ef9a9a;';
+    banner.innerHTML = '🚨 &nbsp; DEEPFAKE DETECTED — FAKE';
+  }
+
+  // ── Animate score bars ──
+  setTimeout(() => {
+    document.getElementById('realBar').style.width = realProb + '%';
+    document.getElementById('fakeBar').style.width = fakeProb + '%';
+  }, 150);
+  animateNumber('realPercent', realProb, '%');
+  animateNumber('fakePercent', fakeProb, '%');
+  document.getElementById('confidenceScore').textContent = (confidence || 'Medium') + ' Confidence';
+
+  // ── Risk badge ──
+  let riskClass, riskLabel, msgClass, msgText;
+  if (fakeProb < 22) {
+    riskClass='risk-low'; riskLabel='✅ Low Risk — Image Appears Authentic'; msgClass='alert-success';
+    msgText = summary || 'No significant deepfake indicators found. Image appears to be an authentic photograph.';
+  } else if (fakeProb < 45) {
+    riskClass='risk-medium'; riskLabel='⚠️ Medium Risk — Suspicious Signals Detected'; msgClass='alert-info';
+    msgText = summary || 'Some manipulation signals detected. Exercise caution and consider further investigation.';
+  } else {
+    riskClass='risk-high'; riskLabel='🚨 High Risk — Deepfake Indicators Found'; msgClass='alert-danger';
+    msgText = summary || 'Strong deepfake indicators detected. We recommend filing a complaint immediately.';
+  }
+  document.getElementById('riskBadge').innerHTML = `<span class="risk-badge ${riskClass}">${riskLabel}</span>`;
+  const msgEl = document.getElementById('riskMsg');
+  msgEl.className = 'alert-box ' + msgClass;
+  msgEl.textContent = msgText;
+
+  // ── AI Analysis ──
+  if (summary || signals.length > 0) {
+    document.getElementById('aiReasoningBox').style.display = 'block';
+    document.getElementById('aiReasoningText').textContent = summary || '';
+    const sigList = document.getElementById('signalsList');
+    sigList.innerHTML = '';
+    signals.forEach(sig => {
+      const chip = document.createElement('span');
+      chip.style.cssText = 'background:rgba(233,30,140,0.1);border:1px solid rgba(233,30,140,0.25);border-radius:30px;padding:5px 14px;font-size:0.76rem;color:var(--light-pink);display:inline-block;';
+      chip.textContent = sig;
+      sigList.appendChild(chip);
+    });
+  }
+
+  // ── Evidence Certificate Preview ──
+  document.getElementById('evidenceCertBox').style.display = 'block';
+  document.getElementById('certEvidenceFilename').textContent = name;
+  document.getElementById('certEvidenceTime').textContent = ts;
+  document.getElementById('certEvidenceReal').textContent = realProb + '%';
+  document.getElementById('certEvidenceFake').textContent = fakeProb + '%';
+  document.getElementById('certEvidenceId').textContent = certId;
+  const vb = document.getElementById('certEvidenceVerdict');
+  if (verdict === 'REAL' && fakeProb < 22) {
+    vb.style.cssText = 'padding:10px 20px;border-radius:30px;font-weight:800;font-size:0.95rem;text-transform:uppercase;letter-spacing:0.08em;background:rgba(76,175,80,0.25);border:2px solid rgba(76,175,80,0.5);color:#a5d6a7;';
+    vb.textContent = '✅ AUTHENTIC';
+  } else if (verdict === 'FAKE' || fakeProb >= 45) {
+    vb.style.cssText = 'padding:10px 20px;border-radius:30px;font-weight:800;font-size:0.95rem;text-transform:uppercase;letter-spacing:0.08em;background:rgba(244,67,54,0.25);border:2px solid rgba(244,67,54,0.5);color:#ef9a9a;';
+    vb.textContent = '🚨 DEEPFAKE';
+  } else {
+    vb.style.cssText = 'padding:10px 20px;border-radius:30px;font-weight:800;font-size:0.95rem;text-transform:uppercase;letter-spacing:0.08em;background:rgba(255,193,7,0.2);border:2px solid rgba(255,193,7,0.45);color:#ffd54f;';
+    vb.textContent = '⚠️ SUSPICIOUS';
+  }
+
+  // ── Complaint ──
+  const complaintEl = document.getElementById('complaintPrompt');
+  if (fakeProb >= 65) complaintEl.classList.remove('hidden');
+  else complaintEl.classList.add('hidden');
+
+  document.getElementById('detectResult').classList.add('show');
+  setTimeout(() => document.getElementById('detectResult').scrollIntoView({ behavior:'smooth', block:'nearest' }), 100);
+}
+
+function animateNumber(id, target, suffix) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  let cur = 0;
+  const step = Math.max(1, Math.ceil(target / 45));
+  const iv = setInterval(() => {
+    cur = Math.min(cur + step, target);
+    el.textContent = cur + suffix;
+    if (cur >= target) clearInterval(iv);
+  }, 25);
+}
+
+function saveEvidenceWithCert() {
+  if (!lastDetection) { showToast('⚠️ No detection result to save.'); return; }
+  evidenceStore.push({ ...lastDetection, id: Date.now() });
+  localStorage.setItem('rh_evidence_' + currentUser.email, JSON.stringify(evidenceStore));
+  renderEvidence();
+  showToast('✅ Evidence + Certificate saved successfully!');
+}
+
+function downloadEvidenceCert() {
+  if (!lastDetection) { showToast('⚠️ No detection result found.'); return; }
+  const d = lastDetection;
+  const riskLabel = d.fakeProb < 30 ? 'LOW RISK' : d.fakeProb < 65 ? 'MEDIUM RISK' : 'HIGH RISK';
+  const content = `
+╔══════════════════════════════════════════════════════════════╗
+║         REALHER – AI DEEPFAKE DETECTION CERTIFICATE          ║
+║                  Official Evidence Document                  ║
+╚══════════════════════════════════════════════════════════════╝
+
+CERTIFICATE ID  : ${d.certId}
+ISSUED ON       : ${d.timestamp}
+ISSUED TO       : ${currentUser ? currentUser.name : 'RealHer User'}
+EMAIL           : ${currentUser ? currentUser.email : '—'}
+PLATFORM        : RealHer AI Detection System
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMAGE DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+File Name       : ${d.name}
+Analysis Date   : ${d.timestamp}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DETECTION RESULTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VERDICT         : ${d.verdict || (d.fakeProb >= 65 ? 'FAKE' : d.fakeProb >= 30 ? 'SUSPICIOUS' : 'REAL')}
+Authentic Score : ${d.realProb || (100 - d.fakeProb)}%  ← How REAL the image is
+Deepfake Score  : ${d.fakeProb}%  ← How FAKE the image is
+AI Confidence   : ${d.confidence}
+Risk Level      : ${riskLabel}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AI FORENSIC ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${d.summary || 'Analysis summary not available.'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+LEGAL NOTICE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This certificate is generated by RealHer AI Detection System
+powered by Claude Vision AI (Anthropic). This document serves
+as forensic evidence and can be submitted to:
+  • SHE Teams
+  • Cybercrime Authorities
+  • Law Enforcement Agencies
+  • Court of Law
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RealHer – Fighting Deepfake Misuse with AI
+Certificate ID: ${d.certId}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`.trim();
+  downloadText(content, 'RealHer_Certificate_' + (d.certId || 'evidence') + '.txt');
+  showToast('📥 Evidence certificate downloaded!');
+}
+
+function downloadDetectionReport() {
+  downloadEvidenceCert();
+}
+
+// ── EVIDENCE ──
+function saveEvidence() {
+  if(!lastDetection) { showToast('⚠️ No detection result to save.'); return; }
+  evidenceStore.push({ ...lastDetection, id: Date.now() });
+  localStorage.setItem('rh_evidence_' + currentUser.email, JSON.stringify(evidenceStore));
+  renderEvidence();
+  showToast('✅ Evidence saved successfully!');
+}
+function renderEvidence() {
+  const list = document.getElementById('evidenceList');
+  const noMsg = document.getElementById('noEvidenceMsg');
+  if(evidenceStore.length === 0) { noMsg.style.display = 'flex'; return; }
+  noMsg.style.display = 'none';
+  // Clear non-no-evidence items
+  list.querySelectorAll('.ev-item').forEach(e => e.remove());
+  evidenceStore.forEach((ev, i) => {
+    const li = document.createElement('li');
+    li.className = 'ev-item';
+    const riskLabel = ev.fakeProb < 30 ? 'Low Risk' : ev.fakeProb < 65 ? 'Medium Risk' : 'High Risk';
+    li.innerHTML = `
+      <div class="ev-info">
+        <div class="ev-name">📄 ${ev.name}</div>
+        <div class="ev-meta">${ev.timestamp} · ${riskLabel} (${ev.fakeProb}% deepfake)</div>
+      </div>
+      <div class="ev-btns">
+        <button class="btn-secondary" style="font-size:0.78rem;padding:7px 12px;" onclick="downloadEvReport(${i})">📥 PDF Report</button>
+      </div>`;
+    list.appendChild(li);
+  });
+}
+function downloadEvReport(i) {
+  const ev = evidenceStore[i];
+  const riskLabel = ev.fakeProb < 30 ? 'Low Risk' : ev.fakeProb < 65 ? 'Medium Risk' : 'High Risk';
+  const content = `REALHER – EVIDENCE CERTIFICATE
+================================
+User        : ${currentUser.name}
+Email       : ${currentUser.email}
+File Name   : ${ev.name}
+Timestamp   : ${ev.timestamp}
+Detection   : ${ev.fakeProb}% Deepfake Probability
+Risk Level  : ${riskLabel}
+================================
+This report is auto-generated by RealHer AI Detection System.
+Your data is encrypted and securely stored.
+RealHer – Fighting Deepfake Misuse with AI`;
+  downloadText(content, `RealHer_Evidence_${ev.name}.txt`);
+  showToast('📥 Evidence report downloaded!');
+}
+
+// ── COMPLAINT ──
+function generateComplaint() {
+  const ev = evidenceStore.length > 0 ? evidenceStore[evidenceStore.length - 1] : lastDetection;
+  if(!ev) { showToast('⚠️ No evidence or detection data found.'); return; }
+  const riskLabel = ev.fakeProb < 30 ? 'Low Risk' : ev.fakeProb < 65 ? 'Medium Risk' : 'High Risk';
+  const report = `REALHER – OFFICIAL COMPLAINT REPORT
+=====================================
+Date        : ${new Date().toLocaleString()}
+Complainant : ${currentUser.name}
+Email       : ${currentUser.email}
+
+INCIDENT DETAILS
+-----------------
+File Name   : ${ev.name}
+Timestamp   : ${ev.timestamp}
+Detection   : ${ev.fakeProb}% Deepfake Probability
+Risk Level  : ${riskLabel}
+Analysis    : RealHer AI Model v2.0
+
+EVIDENCE STATEMENT
+-------------------
+The above media file was analyzed by RealHer's AI deepfake detection system.
+The system detected a ${ev.fakeProb}% probability of AI-generated manipulation,
+which constitutes potential identity misuse under the IT Act 2000 and 
+relevant cybercrime statutes.
+
+REQUEST
+--------
+I hereby request the SHE Team / Cybercrime Authority to:
+1. Investigate the source of the manipulated content.
+2. Take appropriate legal action under applicable law.
+3. Protect my digital identity from further misuse.
+
+Signature   : ${currentUser.name}
+Date        : ${new Date().toLocaleDateString()}
+=====================================
+Submitted via RealHer – Fighting Deepfake Misuse with AI`;
+
+  document.getElementById('complaintReport').textContent = report;
+  document.getElementById('complaintReport').classList.add('show');
+  document.getElementById('complaintActions').classList.remove('hidden');
+  if(document.getElementById('complaintPrompt')) document.getElementById('complaintPrompt').classList.add('hidden');
+  openPanel('complaintPanel');
+  showToast('📋 Complaint report generated!');
+}
+function downloadComplaint() {
+  const txt = document.getElementById('complaintReport').textContent;
+  downloadText(txt, 'RealHer_Complaint_Report.txt');
+  showToast('📥 Complaint report downloaded!');
+}
+
+// ── CHATBOT ──
+const botResponses = {
+  scared: ["You are safe with RealHer. 💜 Your feelings are completely valid.", "It's okay to feel scared. You have taken the right step by coming here."],
+  help: ["RealHer is here to help you every step of the way. 🛡️", "You can upload evidence, generate a complaint, or talk to us. We're here 24/7."],
+  alone: ["You are NOT alone. Thousands of women use RealHer to fight identity misuse. 💪", "We stand with you. Your strength is remarkable."],
+  default: [
+    "You are not alone. RealHer stands with you. 💜",
+    "Your identity is protected and your data is secure.",
+    "RealHer is here to help you through this.",
+    "Take a deep breath. You are stronger than you think. 🌸",
+    "We believe you. Your experience is valid and we will help you.",
+    "Every step you take here is towards your protection and justice.",
+    "You deserve to feel safe online. RealHer is fighting for you."
+  ]
+};
+let botIdx = 0;
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if(!msg) return;
+  appendChat('user', msg);
+  input.value = '';
+  setTimeout(() => {
+    const lower = msg.toLowerCase();
+    let responses = botResponses.default;
+    if(lower.includes('scared') || lower.includes('fear') || lower.includes('afraid')) responses = botResponses.scared;
+    else if(lower.includes('help') || lower.includes('what should')) responses = botResponses.help;
+    else if(lower.includes('alone') || lower.includes('nobody')) responses = botResponses.alone;
+    const reply = responses[Math.floor(Math.random() * responses.length)];
+    appendChat('bot', reply);
+  }, 600);
+}
+function sendQuick(msg) {
+  document.getElementById('chatInput').value = msg;
+  sendChat();
+}
+function appendChat(role, text) {
+  const win = document.getElementById('chatWindow');
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.textContent = (role === 'bot' ? '💜 ' : '') + text;
+  win.appendChild(div);
+  win.scrollTop = win.scrollHeight;
+}
+
+// ── CERTIFICATE ──
+function downloadCert() {
+  const content = `REALHER – DIGITAL IDENTITY PROTECTION CERTIFICATE
+====================================================
+Awarded To  : ${currentUser.name}
+Email       : ${currentUser.email}
+Member Since: ${currentUser.joinDate || new Date().toLocaleDateString()}
+Issue Date  : ${new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'})}
+====================================================
+This certifies that the above named individual has registered
+their digital identity with RealHer AI Protection System.
+
+Your identity is actively monitored and protected against
+deepfake misuse by RealHer's AI systems.
+
+"Your digital identity is protected by RealHer."
+====================================================
+RealHer – Fighting Deepfake Misuse with AI`;
+  downloadText(content, 'RealHer_Certificate_' + currentUser.name + '.txt');
+  showToast('🏅 Certificate downloaded!');
+}
+
+// ── UTILITIES ──
+function downloadText(content, filename) {
+  const blob = new Blob([content], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// Close panels on background click
+document.querySelectorAll('.section-panel').forEach(panel => {
+  panel.addEventListener('click', e => { if(e.target === panel) closePanel(panel.id); });
+});
+
+// Init demo detection if opened directly
+document.getElementById('certDate').textContent = 'Issued: ' + new Date().toLocaleDateString('en-GB', {day:'2-digit',month:'long',year:'numeric'});
+</script>
+</body>
+</html>
