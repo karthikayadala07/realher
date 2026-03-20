@@ -14,96 +14,100 @@ const upload = multer({
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ── MODEL CONFIG ───────────────────────────────────────────────────────────
-// gemini-1.5-pro is MUCH more accurate for image forensics than flash
-// It's still free (60 requests/min on free tier) — perfect for a hackathon
 const GEMINI_MODEL = 'gemini-1.5-pro';
 
-// ── SYSTEM PROMPT (sent separately for better instruction-following) ────────
-const SYSTEM_PROMPT = `You are an expert forensic image analyst specializing in deepfake and AI-generated image detection. You have been trained on thousands of real and fake images. You are precise, consistent, and methodical. You always respond with valid JSON only — no markdown, no prose outside the JSON object.`;
+// ── SYSTEM PROMPT ──────────────────────────────────────────────────────────
+const SYSTEM_PROMPT = `You are an expert forensic image analyst specializing in deepfake and AI-generated image detection. You are precise, consistent, and methodical. You always respond with valid JSON only — no markdown, no prose outside the JSON object.`;
 
-// ── DETECTION PROMPT ───────────────────────────────────────────────────────
-// Key improvements:
-// 1. Step-by-step checklist forces the model to think before scoring
-// 2. Explicit scoring anchors reduce random variation
-// 3. Tells the model to count signals, not just guess
-// 4. temperature: 0 makes results deterministic
-const DETECTION_PROMPT = `Analyze this image for signs of deepfake manipulation or AI generation. Work through this checklist step by step, then produce your final JSON verdict.
+// ── PASS 1: GENERAL DEEPFAKE DETECTION ────────────────────────────────────
+const PASS1_PROMPT = `Analyze this image for signs of deepfake manipulation or AI generation. Work step by step.
 
 STEP 1 — FACE PRESENCE
-Does this image contain a human face? If no face is present, set verdict=REAL, fakeProb=5, confidence=Low, summary="No face detected — deepfake analysis not applicable."
+Does this image contain a human face? If no face: verdict=REAL, fakeProb=5, confidence=Low, summary="No face detected."
 
-STEP 2 — EXAMINE EACH SIGNAL (score 0=not present, 1=possibly present, 2=clearly present)
+STEP 2 — CHECK EACH SIGNAL (0=not present, 1=possibly, 2=clearly present)
 
-SKIN TEXTURE
-- Are pores, fine lines, or natural blemishes visible? (real=yes)
-- Does the skin look plastic, waxy, or airbrushed? (fake=yes)
+SKIN TEXTURE: Visible pores/blemishes=real. Plastic/waxy/airbrushed=fake.
+FACE EDGES: Halo, blur, or glow around face/hair edges=fake.
+EYES: Different catchlight in each eye=real. Identical/glassy eyes=fake.
+LIGHTING: Face lighting matches background/clothing=real. Mismatched shadows=fake.
+FACE-BODY MATCH: Face skin tone matches neck/body=real. Mismatch in tone or sharpness=fake.
+HAIR: Individual strands visible=real. Painted/merged/unnatural edges=fake.
+ARTIFACTS: Distorted jewelry/glasses, warped edges, repeating textures=fake.
+FACE-SWAP: Face looks pasted — different resolution, lighting, or skin tone than body=fake.
 
-FACE EDGES  
-- Is the jawline sharp and consistent with the rest of the image?
-- Is there a halo, blur, or glow around the face or hair edges? (fake=yes)
+STEP 3 — COUNT fake signals scored 1 or 2, and real signals confirmed.
 
-EYES
-- Do the two eyes have naturally different catchlight reflections? (real=yes, fake=identical)
-- Do the eyes look glassy, flat, or unnaturally perfect? (fake=yes)
+STEP 4 — SCORE:
+0 fake signals + multiple real signals → fakeProb 5–20, verdict REAL
+1–2 fake signals → fakeProb 25–45, verdict SUSPICIOUS
+3–4 fake signals → fakeProb 55–75, verdict FAKE
+5+ fake signals OR clear face-swap → fakeProb 76–95, verdict FAKE
 
-LIGHTING CONSISTENCY
-- Does the light direction on the face match the background and clothing?
-- Are there mismatched shadows that suggest compositing? (fake=yes)
+STEP 5 — CONFIDENCE: High=certain, Medium=some ambiguity, Low=poor image quality
 
-FACE-TO-BODY CONTINUITY
-- Does the skin tone of the face match the neck and body?
-- Does the face resolution/sharpness match the background resolution? (mismatch=fake)
+Respond ONLY with JSON:
+{"verdict":"FAKE","fakeProb":82,"realProb":18,"confidence":"High","fakeSignalCount":5,"realSignalCount":1,"summary":"2 specific sentences about what you observed.","signals":["signal 1","signal 2","signal 3","signal 4"]}`;
 
-HAIR DETAIL
-- Are individual hair strands distinct and natural? (real=yes)
-- Does hair look painted, merged, or have unnatural edges? (fake=yes)
+// ── PASS 2: FACE-SWAP SPECIALIST PROMPT ───────────────────────────────────
+// Only triggered when Pass 1 is uncertain (fakeProb 15–65)
+const PASS2_PROMPT = `You are a face-swap and celebrity deepfake specialist. The previous analysis was uncertain. Do a deep forensic pass focused ONLY on face-swap detection.
 
-GAN / AI ARTIFACTS
-- Are there any distorted accessories (earrings, glasses, jewelry)? (fake=yes)
-- Any warping, repeating textures, or anatomical errors near face edges? (fake=yes)
+Examine these face-swap indicators carefully:
 
-STEP 3 — COUNT YOUR SIGNALS
-Count: how many fake signals did you score 1 or 2?
-Count: how many real signals did you confirm?
+1. FACE-BODY BOUNDARY
+   - Trace the edge where face meets neck and hair
+   - Any softness, halo, color shift, or blending artifact at this boundary?
+   - Does the face skin tone EXACTLY match the neck in the same lighting?
 
-STEP 4 — SCORE USING THIS SCALE (be consistent — same image must always get same score)
-0 fake signals confirmed + multiple real signals → fakeProb: 5–20, verdict: REAL
-1–2 fake signals, uncertain → fakeProb: 25–45, verdict: SUSPICIOUS  
-3–4 fake signals clearly present → fakeProb: 55–75, verdict: FAKE
-5+ fake signals OR clear face-swap detected → fakeProb: 76–95, verdict: FAKE
+2. LIGHTING DIRECTION
+   - Where is the main light source? (check shadows, highlights)
+   - Does light direction on the face match the clothing and background?
+   - Are shadows under nose/chin consistent with the scene?
 
-STEP 5 — SET CONFIDENCE
-High: You are certain about your verdict, signals are unambiguous
-Medium: Some signals present but image quality makes it hard to be certain
-Low: Image is too low-res, cropped, or obscured to analyze well
+3. FACE RESOLUTION vs BACKGROUND
+   - Is any face noticeably sharper or smoother than the background?
+   - Does any face look like it was taken with a different camera?
 
-Respond ONLY with this JSON (no text before or after):
-{"verdict":"FAKE","fakeProb":82,"realProb":18,"confidence":"High","fakeSIgnalCount":5,"realSignalCount":1,"summary":"Specific 2-sentence description of what you actually observed in this image.","signals":["Specific signal 1 you observed","Specific signal 2","Specific signal 3","Specific signal 4"]}`;
+4. MULTIPLE FACES (if present)
+   - Do all faces have consistent lighting and resolution?
+   - Does any one face look "cleaner" or "more perfect" than the others?
+   - Is any face more symmetric than naturally expected?
 
-// ── GEMINI API CALL ────────────────────────────────────────────────────────
-function callGemini(apiKey, base64Image, mimeType) {
+5. KNOWN FACE-SWAP ARTIFACTS
+   - Unnatural skin smoothness on one face vs others
+   - Slight color temperature difference on the face vs rest of image
+   - Hair edges that look cut-out or artificially blended
+   - Jewelry/accessories warped near the face
+
+SCORING:
+No face-swap signals → fakeProb 10–25
+1–2 subtle signals → fakeProb 35–55
+3+ clear signals OR certain face-swap → fakeProb 65–90
+
+Respond ONLY with JSON:
+{"verdict":"FAKE","fakeProb":78,"realProb":22,"confidence":"High","faceSwapDetected":true,"fakeSignalCount":4,"summary":"2 specific sentences about what face-swap signals you found.","signals":["signal 1","signal 2","signal 3"]}`;
+
+// ── LOW-LEVEL GEMINI CALL ─────────────────────────────────────────────────
+function callGemini(apiKey, base64Image, mimeType, prompt) {
   return new Promise((resolve, reject) => {
     const bodyObj = {
-      system_instruction: {
-        parts: [{ text: SYSTEM_PROMPT }]
-      },
+      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: [{
         role: 'user',
         parts: [
           { inline_data: { mime_type: mimeType, data: base64Image } },
-          { text: DETECTION_PROMPT }
+          { text: prompt }
         ]
       }],
       generationConfig: {
-        temperature: 0,          // FIX 1: temperature=0 = deterministic, no random variation
+        temperature: 0,
         maxOutputTokens: 1024,
-        responseMimeType: 'application/json'  // FIX 2: forces JSON output, no markdown wrapping
+        responseMimeType: 'application/json'
       }
     };
 
     const body = JSON.stringify(bodyObj);
-
     const options = {
       hostname: 'generativelanguage.googleapis.com',
       path: `/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
@@ -135,23 +139,80 @@ function callGemini(apiKey, base64Image, mimeType) {
   });
 }
 
-// ── RETRY WRAPPER ──────────────────────────────────────────────────────────
-// FIX 3: If Gemini fails or returns unparseable JSON, retry up to 2 times
-async function callGeminiWithRetry(apiKey, b64, mimeType, maxRetries = 2) {
+// ── SAFE PARSE WITH RETRY ─────────────────────────────────────────────────
+async function geminiParsed(apiKey, b64, mimeType, prompt, maxRetries = 2) {
   let lastError;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const rawText = await callGemini(apiKey, b64, mimeType);
-      const cleaned = rawText.replace(/```json|```/gi, '').trim();
-      const parsed  = JSON.parse(cleaned);
-      return parsed; // success
+      const raw     = await callGemini(apiKey, b64, mimeType, prompt);
+      const cleaned = raw.replace(/```json|```/gi, '').trim();
+      return JSON.parse(cleaned);
     } catch (err) {
       lastError = err;
-      console.warn(`⚠️  Attempt ${attempt} failed: ${err.message} — retrying...`);
-      if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000 * attempt));
+      console.warn(`⚠️  Attempt ${attempt} failed: ${err.message}`);
+      if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1200 * attempt));
     }
   }
   throw lastError;
+}
+
+// ── DUAL-PASS DETECTION ───────────────────────────────────────────────────
+async function detectDualPass(apiKey, b64, mimeType) {
+
+  // PASS 1 — general detection
+  console.log('   🔬 Pass 1: General deepfake analysis...');
+  const p1 = await geminiParsed(apiKey, b64, mimeType, PASS1_PROMPT);
+  const p1Score = Math.min(100, Math.max(0, parseInt(p1.fakeProb) || 0));
+  console.log(`   📊 Pass 1 score: ${p1Score}% fake`);
+
+  // PASS 2 — only in uncertain zone (15–65%)
+  const UNCERTAIN_LOW  = 15;
+  const UNCERTAIN_HIGH = 65;
+  const needsSecondPass = p1Score >= UNCERTAIN_LOW && p1Score <= UNCERTAIN_HIGH;
+
+  let finalScore, finalResult, passesUsed;
+
+  if (needsSecondPass) {
+    console.log('   🔬 Pass 2: Face-swap specialist analysis...');
+
+    // 2s delay between calls to avoid rate limiting
+    await new Promise(r => setTimeout(r, 2000));
+
+    const p2 = await geminiParsed(apiKey, b64, mimeType, PASS2_PROMPT);
+    const p2Score = Math.min(100, Math.max(0, parseInt(p2.fakeProb) || 0));
+    console.log(`   📊 Pass 2 score: ${p2Score}% fake`);
+
+    // Weighted average: Pass 2 gets 60% weight (specialist)
+    finalScore = Math.round((p1Score * 0.4) + (p2Score * 0.6));
+    console.log(`   🎯 Combined score: ${finalScore}% (40% pass1 + 60% pass2)`);
+
+    const allSignals = [
+      ...(Array.isArray(p1.signals) ? p1.signals : []),
+      ...(Array.isArray(p2.signals) ? p2.signals : [])
+    ].slice(0, 6);
+
+    finalResult = {
+      ...p1,
+      fakeProb:         finalScore,
+      realProb:         100 - finalScore,
+      signals:          allSignals,
+      faceSwapDetected: p2.faceSwapDetected || false,
+      summary:          p2Score > 40 ? p2.summary : p1.summary,
+      confidence:       Math.abs(p1Score - p2Score) < 20 ? 'High' : 'Medium',
+      dualPass:         true,
+      pass1Score:       p1Score,
+      pass2Score:       p2Score
+    };
+    passesUsed = 2;
+
+  } else {
+    finalScore  = p1Score;
+    finalResult = { ...p1, fakeProb: p1Score, realProb: 100 - p1Score, dualPass: false };
+    passesUsed  = 1;
+  }
+
+  console.log(`   ✅ Done (${passesUsed} pass${passesUsed > 1 ? 'es' : ''})`);
+  return finalResult;
 }
 
 // ── DETECT ROUTE ───────────────────────────────────────────────────────────
@@ -169,10 +230,9 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
 
     console.log('\n🔍 Analyzing:', req.file.originalname, `(${(req.file.size / 1024).toFixed(1)} KB)`);
 
-    // FIX 4: Use retry wrapper instead of a single call
-    const r = await callGeminiWithRetry(apiKey, b64, mimeType);
+    const r = await detectDualPass(apiKey, b64, mimeType);
 
-    // Sanitize all fields
+    // Sanitize
     r.fakeProb   = Math.min(100, Math.max(0, parseInt(r.fakeProb) || 0));
     r.realProb   = 100 - r.fakeProb;
     r.confidence = ['High', 'Medium', 'Low'].includes(r.confidence) ? r.confidence : 'Medium';
@@ -181,29 +241,27 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
     r.timestamp  = new Date().toLocaleString();
     r.engine     = GEMINI_MODEL;
 
-    // FIX 5: Tighter thresholds — score always wins
-    // Pro model is more calibrated so we use tighter bands
     if      (r.fakeProb >= 55) r.verdict = 'FAKE';
     else if (r.fakeProb >= 30) r.verdict = 'SUSPICIOUS';
     else                        r.verdict = 'REAL';
 
     const icon = r.verdict === 'FAKE' ? '🚨' : r.verdict === 'SUSPICIOUS' ? '⚠️' : '✅';
-    console.log(`${icon}  VERDICT: ${r.verdict} | Fake: ${r.fakeProb}% | Real: ${r.realProb}% | ${r.confidence} confidence | Signals: ${r.fakeSIgnalCount ?? '?'} fake`);
+    const dual = r.dualPass ? ' [2-pass]' : ' [1-pass]';
+    console.log(`${icon}  VERDICT: ${r.verdict} | Fake: ${r.fakeProb}% | ${r.confidence} confidence${dual}`);
 
     res.json(r);
 
   } catch (err) {
     console.error('❌ Error:', err.message);
 
-    // FIX 6: Helpful error messages for common failures
     if (err.message.includes('RESOURCE_EXHAUSTED')) {
       return res.status(429).json({
-        error: 'Gemini API rate limit hit. Wait 1 minute and try again. (Free tier: 2 requests/min for Pro)'
+        error: 'Rate limit hit. Wait 1 minute and try again. (Free tier: 2 req/min for Pro)'
       });
     }
     if (err.message.includes('API_KEY_INVALID')) {
       return res.status(401).json({
-        error: 'Invalid Gemini API key. Check your key at aistudio.google.com'
+        error: 'Invalid Gemini API key. Check at aistudio.google.com'
       });
     }
 
@@ -214,8 +272,9 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
 // ── HEALTH CHECK ───────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({
-    status: 'ok',
-    engine: GEMINI_MODEL,
+    status:    'ok',
+    engine:    GEMINI_MODEL,
+    mode:      'dual-pass',
     apiKeySet: !!process.env.GEMINI_API_KEY
   });
 });
@@ -230,16 +289,7 @@ app.listen(PORT, () => {
   console.log('  ██║  ██║███████╗██║  ██║███████╗██║  ██║███████╗██║  ██║');
   console.log('');
   console.log(`  🚀  Running at : http://localhost:${PORT}`);
-  console.log(`  🤖  Engine     : ${GEMINI_MODEL} (More accurate for image analysis)`);
+  console.log(`  🤖  Engine     : ${GEMINI_MODEL} — Dual-Pass Detection`);
   console.log(`  🔑  API Key    : ${process.env.GEMINI_API_KEY ? '✅ LOADED' : '❌ NOT SET'}`);
   console.log('');
-  if (!process.env.GEMINI_API_KEY) {
-    console.log('  ─────────────────────────────────────────────');
-    console.log('  To get your FREE Gemini API key:');
-    console.log('  1. Go to: https://aistudio.google.com');
-    console.log('  2. Click "Get API Key" → Create API Key');
-    console.log('  3. Set in Render: Environment → GEMINI_API_KEY');
-    console.log('  ─────────────────────────────────────────────');
-    console.log('');
-  }
 });
