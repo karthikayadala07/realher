@@ -166,7 +166,7 @@ async function detectDualPass(apiKey, b64, mimeType) {
   console.log(`   📊 Pass 1 score: ${p1Score}% fake`);
 
   // PASS 2 — only in uncertain zone (15–65%)
-  const UNCERTAIN_LOW  = 15;
+  const UNCERTAIN_LOW  = 5;
   const UNCERTAIN_HIGH = 65;
   const needsSecondPass = p1Score >= UNCERTAIN_LOW && p1Score <= UNCERTAIN_HIGH;
 
