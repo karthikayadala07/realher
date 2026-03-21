@@ -82,7 +82,7 @@ export GEMINI_API_KEY=your_gemini_api_key_here # Mac/Linux
 node server.js
 ```
 
-Then open your browser and go to: **http://localhost:3000**
+Then open your browser and go to: **https://realher.onrender.com/**
 
 ---
 
